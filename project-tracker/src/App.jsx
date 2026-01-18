@@ -3,12 +3,17 @@ import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectFormPage from "./pages/ProjectFormPage";
+
 import {
   getProjects,
   addProject,
   updateProject,
   deleteProject,
+  setView,
+  getView,
 } from "./services/projectService";
+
+// Footer styling
 const footerStyle = {
   marginTop: "40px",
   padding: "12px 0",
@@ -24,7 +29,7 @@ function AppContent() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
 
-  // ✅ View count state
+  // View object state
   const [viewCount, setViewCount] = useState(0);
 
   const navigate = useNavigate();
@@ -34,10 +39,23 @@ function AppContent() {
     const navEntry = performance.getEntriesByType("navigation")[0];
     const alreadyCounted = sessionStorage.getItem("viewCounted");
 
-    if (navEntry?.type === "navigate" && !alreadyCounted) {
-      setViewCount((prev) => prev + 1);
-      sessionStorage.setItem("viewCounted", "true");
-    }
+    const updateView = async () => {
+      try {
+        let res;
+        if (navEntry?.type === "navigate" && !alreadyCounted) {
+          res = await setView(); // await the POST increment
+          sessionStorage.setItem("viewCounted", "true");
+        } else {
+          res = await getView(); // await the GET
+        }
+
+        setViewCount(res.data); // now res.data exists
+      } catch (err) {
+        console.error("Error updating view count:", err);
+      }
+    };
+
+    updateView();
   }, []);
 
   /* -------------------- LOAD PROJECTS -------------------- */
@@ -120,7 +138,7 @@ function AppContent() {
         />
       </Routes>
 
-      {/* ✅ FOOTER VIEW COUNT */}
+      {/* Footer with view count */}
       <footer style={footerStyle}>
         <span>Views: {viewCount}</span>
       </footer>
