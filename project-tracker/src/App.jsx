@@ -9,14 +9,38 @@ import {
   updateProject,
   deleteProject,
 } from "./services/projectService";
+const footerStyle = {
+  marginTop: "40px",
+  padding: "12px 0",
+  textAlign: "center",
+  fontSize: "14px",
+  color: "#6b7280",
+  borderTop: "1px solid #e5e7eb",
+};
 
 function AppContent() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
+
+  // ✅ View count state
+  const [viewCount, setViewCount] = useState(0);
+
   const navigate = useNavigate();
 
+  /* -------------------- VIEW COUNT (NO REFRESH) -------------------- */
+  useEffect(() => {
+    const navEntry = performance.getEntriesByType("navigation")[0];
+    const alreadyCounted = sessionStorage.getItem("viewCounted");
+
+    if (navEntry?.type === "navigate" && !alreadyCounted) {
+      setViewCount((prev) => prev + 1);
+      sessionStorage.setItem("viewCounted", "true");
+    }
+  }, []);
+
+  /* -------------------- LOAD PROJECTS -------------------- */
   const loadProjects = async () => {
     setLoading(true);
     try {
@@ -33,6 +57,7 @@ function AppContent() {
     loadProjects();
   }, []);
 
+  /* -------------------- DELETE PROJECT -------------------- */
   useEffect(() => {
     if (deleteProjectId) {
       deleteProject(deleteProjectId).then(loadProjects);
@@ -40,6 +65,7 @@ function AppContent() {
     }
   }, [deleteProjectId]);
 
+  /* -------------------- ADD / UPDATE -------------------- */
   const handleSubmit = async (project) => {
     if (selectedProject) {
       await updateProject(project);
@@ -48,7 +74,7 @@ function AppContent() {
       await addProject(project);
     }
     loadProjects();
-    navigate("/"); // 👈 redirect after submit
+    navigate("/");
   };
 
   const handleEdit = (project) => {
@@ -56,35 +82,23 @@ function AppContent() {
     navigate("/add");
   };
 
+  const Loader = () => (
+    <div className="loading-container">
+      <div className="spinner" />
+      <p>Loading projects...</p>
+    </div>
+  );
+
   return (
     <>
       <Navbar />
+
       <Routes>
         <Route
           path="/"
           element={
             loading ? (
-              <div className="loading-container">
-                <div className="spinner" />
-                <p>Loading projects...</p>
-              </div>
-            ) : (
-              <ProjectsPage
-                projects={projects}
-                onEdit={handleEdit}
-                onDelete={setDeleteProjectId}
-              />
-            )
-          }
-        />
-        <Route
-          path="/"
-          element={
-            loading ? (
-              <div className="loading-container">
-                <div className="spinner" />
-                <p>Loading projects...</p>
-              </div>
+              <Loader />
             ) : (
               <ProjectsPage
                 projects={projects}
@@ -105,6 +119,11 @@ function AppContent() {
           }
         />
       </Routes>
+
+      {/* ✅ FOOTER VIEW COUNT */}
+      <footer style={footerStyle}>
+        <span>Views: {viewCount}</span>
+      </footer>
     </>
   );
 }
