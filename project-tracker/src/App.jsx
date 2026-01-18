@@ -11,14 +11,22 @@ import {
 } from "./services/projectService";
 
 function AppContent() {
+  const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
   const navigate = useNavigate();
 
   const loadProjects = async () => {
-    const res = await getProjects();
-    setProjects(res.data);
+    setLoading(true);
+    try {
+      const res = await getProjects();
+      setProjects(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -55,13 +63,38 @@ function AppContent() {
         <Route
           path="/"
           element={
-            <ProjectsPage
-              projects={projects}
-              onEdit={handleEdit}
-              onDelete={setDeleteProjectId}
-            />
+            loading ? (
+              <div className="loading-container">
+                <div className="spinner" />
+                <p>Loading projects...</p>
+              </div>
+            ) : (
+              <ProjectsPage
+                projects={projects}
+                onEdit={handleEdit}
+                onDelete={setDeleteProjectId}
+              />
+            )
           }
         />
+        <Route
+          path="/"
+          element={
+            loading ? (
+              <div className="loading-container">
+                <div className="spinner" />
+                <p>Loading projects...</p>
+              </div>
+            ) : (
+              <ProjectsPage
+                projects={projects}
+                onEdit={handleEdit}
+                onDelete={setDeleteProjectId}
+              />
+            )
+          }
+        />
+
         <Route
           path="/add"
           element={
