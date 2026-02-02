@@ -19,7 +19,7 @@ export const setView = () => {
   });
 };
 export const getView = async () => {
-  let res = await axios.get("http://localhost:8080/project/view");
+  let res = await axios.get("https://projecttrackerjar.onrender.com/project/view");
   return res;
 };
 export const updateProject = (project) => {
