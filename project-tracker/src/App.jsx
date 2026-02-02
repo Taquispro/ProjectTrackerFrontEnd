@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import confetti from "canvas-confetti";
 
 import Navbar from "./components/Navbar";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -14,13 +13,30 @@ import {
   getView,
 } from "./services/projectService";
 
-// --- PROFESSIONAL STYLES ---
+// --- PURE CSS (Injected via Template Literal) ---
+const styleTag = `
+  @keyframes count-up {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-success {
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  }
+  .view-badge-new {
+    animation: pulse-success 1.5s infinite;
+    border-color: #2563eb !important;
+  }
+`;
+
+// --- STYLES ---
 const footerStyle = {
   marginTop: "60px",
-  padding: "32px 0",
+  padding: "40px 0",
   textAlign: "center",
-  borderTop: "1px solid #e2e8f0", // Subtle light border
-  backgroundColor: "#f8fafc", // Soft slate background
+  borderTop: "1px solid #f1f5f9",
+  backgroundColor: "#ffffff",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -30,68 +46,62 @@ const footerStyle = {
 const badgeStyle = {
   display: "inline-flex",
   alignItems: "center",
-  gap: "8px",
-  padding: "6px 16px",
-  borderRadius: "99px",
-  backgroundColor: "#ffffff",
-  border: "1px solid #cbd5e1",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-  transition: "all 0.3s ease",
+  gap: "10px",
+  padding: "8px 20px",
+  borderRadius: "12px",
+  backgroundColor: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  transition: "all 0.4s ease",
 };
 
 const labelStyle = {
-  fontSize: "12px",
-  fontWeight: "600",
-  color: "#64748b",
+  fontSize: "11px",
+  fontWeight: "700",
+  color: "#94a3b8",
   textTransform: "uppercase",
-  letterSpacing: "0.05em",
+  letterSpacing: "0.1em",
 };
 
 const countStyle = {
-  fontSize: "16px",
-  fontWeight: "700",
-  color: "#2563eb", // Professional Blue
-  fontFamily: "Monaco, Consolas, monospace", // Monospace for stable numbers
+  fontSize: "18px",
+  fontWeight: "600",
+  color: "#1e293b",
+  fontFamily:
+    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
 };
 
 // --- ANIMATED COUNTER COMPONENT ---
-function AnimatedView({ count, triggerConfetti }) {
+function AnimatedView({ count, isNewVisit }) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
     let frame = 0;
-    const totalFrames = 60; // ~1 second at 60fps
+    const totalFrames = 50;
     const end = count;
 
     if (end === 0) return;
 
     const timer = setInterval(() => {
       frame++;
-      // Cubic Ease-Out: Starts fast, slows down at the end
       const progress = frame / totalFrames;
+      // Ease-out function
       const easeOut = 1 - Math.pow(1 - progress, 3);
-
       setDisplay(Math.floor(easeOut * end));
 
       if (frame === totalFrames) clearInterval(timer);
-    }, 16); // ~60fps
-
-    if (triggerConfetti) {
-      confetti({
-        particleCount: 80,
-        spread: 50,
-        origin: { y: 0.8 },
-        colors: ["#3b82f6", "#1d4ed8", "#93c5fd"], // Blue themed
-      });
-    }
+    }, 20);
 
     return () => clearInterval(timer);
-  }, [count, triggerConfetti]);
+  }, [count]);
 
   return (
-    <div style={badgeStyle}>
-      <span style={labelStyle}>Live Views</span>
-      <div style={countStyle}>{display.toLocaleString()}</div>
+    <div style={badgeStyle} className={isNewVisit ? "view-badge-new" : ""}>
+      <style>{styleTag}</style>
+      <span style={labelStyle}>Analytics</span>
+      <div style={countStyle}>
+        {display.toLocaleString()}{" "}
+        <span style={{ fontSize: "12px", color: "#cbd5e1" }}>Views</span>
+      </div>
     </div>
   );
 }
@@ -103,11 +113,10 @@ function AppContent() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
   const [viewCount, setViewCount] = useState({ year: 2026, view: 0 });
-  const [triggerConfetti, setTriggerConfetti] = useState(false);
+  const [isNewVisit, setIsNewVisit] = useState(false);
 
   const navigate = useNavigate();
 
-  // Logic remains identical to your original code
   useEffect(() => {
     const updateView = async () => {
       try {
@@ -120,7 +129,7 @@ function AppContent() {
         if (!alreadyCounted && cameFromLink) {
           res = await setView();
           localStorage.setItem("viewCounted", "true");
-          setTriggerConfetti(true);
+          setIsNewVisit(true); // Triggers the pulse animation instead of confetti
         } else {
           res = await getView();
         }
@@ -205,13 +214,17 @@ function AppContent() {
       </div>
 
       <footer style={footerStyle}>
-        <AnimatedView
-          count={viewCount.view}
-          triggerConfetti={triggerConfetti}
-        />
-        <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
-          © {viewCount.year} Project Portfolio
-        </p>
+        <AnimatedView count={viewCount.view} isNewVisit={isNewVisit} />
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            marginTop: "8px",
+            fontWeight: "500",
+          }}
+        >
+          &copy; {viewCount.year} Portfolio Management System
+        </div>
       </footer>
     </>
   );
