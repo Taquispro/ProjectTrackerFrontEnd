@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import confetti from "canvas-confetti"; // npm install canvas-confetti
+import confetti from "canvas-confetti";
 
 import Navbar from "./components/Navbar";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -14,54 +14,74 @@ import {
   getView,
 } from "./services/projectService";
 
-// Footer styling
+// --- PROFESSIONAL STYLES ---
 const footerStyle = {
-  marginTop: "40px",
-  padding: "12px 0",
+  marginTop: "60px",
+  padding: "32px 0",
   textAlign: "center",
-  fontSize: "16px",
-  fontWeight: "bold",
-  color: "#1e3a8a",
-  borderTop: "2px solid #3b82f6",
-  background: "linear-gradient(90deg, #e0f2fe, #bae6fd)",
+  borderTop: "1px solid #e2e8f0", // Subtle light border
+  backgroundColor: "#f8fafc", // Soft slate background
   display: "flex",
-  justifyContent: "center",
+  flexDirection: "column",
   alignItems: "center",
-  gap: "10px",
-  position: "relative",
+  gap: "12px",
 };
 
-// View default
-const view = {
-  year: 2026,
-  view: 0,
+const badgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "6px 16px",
+  borderRadius: "99px",
+  backgroundColor: "#ffffff",
+  border: "1px solid #cbd5e1",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+  transition: "all 0.3s ease",
 };
 
-// Animated Counter Component
+const labelStyle = {
+  fontSize: "12px",
+  fontWeight: "600",
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+};
+
+const countStyle = {
+  fontSize: "16px",
+  fontWeight: "700",
+  color: "#2563eb", // Professional Blue
+  fontFamily: "Monaco, Consolas, monospace", // Monospace for stable numbers
+};
+
+// --- ANIMATED COUNTER COMPONENT ---
 function AnimatedView({ count, triggerConfetti }) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    let start = 0;
+    let frame = 0;
+    const totalFrames = 60; // ~1 second at 60fps
     const end = count;
-    if (start === end) return;
 
-    const step = Math.ceil(end / 60); // 60 steps
+    if (end === 0) return;
+
     const timer = setInterval(() => {
-      start += step;
-      if (start >= end) {
-        start = end;
-        clearInterval(timer);
-      }
-      setDisplay(start);
-    }, 30); // 30ms interval ~ 1.8s animation
+      frame++;
+      // Cubic Ease-Out: Starts fast, slows down at the end
+      const progress = frame / totalFrames;
+      const easeOut = 1 - Math.pow(1 - progress, 3);
 
-    // Trigger confetti if needed
+      setDisplay(Math.floor(easeOut * end));
+
+      if (frame === totalFrames) clearInterval(timer);
+    }, 16); // ~60fps
+
     if (triggerConfetti) {
       confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
+        particleCount: 80,
+        spread: 50,
+        origin: { y: 0.8 },
+        colors: ["#3b82f6", "#1d4ed8", "#93c5fd"], // Blue themed
       });
     }
 
@@ -69,31 +89,25 @@ function AnimatedView({ count, triggerConfetti }) {
   }, [count, triggerConfetti]);
 
   return (
-    <div
-      style={{
-        fontSize: "22px",
-        fontWeight: "bold",
-        background: "linear-gradient(90deg, #facc15, #f87171, #3b82f6)",
-        WebkitBackgroundClip: "text",
-        color: "transparent",
-      }}
-    >
-      👁️ {display.toLocaleString()}
+    <div style={badgeStyle}>
+      <span style={labelStyle}>Live Views</span>
+      <div style={countStyle}>{display.toLocaleString()}</div>
     </div>
   );
 }
 
+// --- MAIN APP COMPONENT ---
 function AppContent() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
-  const [viewCount, setViewCount] = useState(view);
+  const [viewCount, setViewCount] = useState({ year: 2026, view: 0 });
   const [triggerConfetti, setTriggerConfetti] = useState(false);
 
   const navigate = useNavigate();
 
-  // -------------------- VIEW COUNT --------------------
+  // Logic remains identical to your original code
   useEffect(() => {
     const updateView = async () => {
       try {
@@ -104,23 +118,20 @@ function AppContent() {
 
         let res;
         if (!alreadyCounted && cameFromLink) {
-          res = await setView(); // increment backend
+          res = await setView();
           localStorage.setItem("viewCounted", "true");
-          setTriggerConfetti(true); // trigger confetti for new external visit
+          setTriggerConfetti(true);
         } else {
-          res = await getView(); // fetch current view
+          res = await getView();
         }
-
         setViewCount(res.data);
       } catch (err) {
         console.error("Error updating view count:", err);
       }
     };
-
     updateView();
   }, []);
 
-  // -------------------- LOAD PROJECTS --------------------
   const loadProjects = async () => {
     setLoading(true);
     try {
@@ -137,7 +148,6 @@ function AppContent() {
     loadProjects();
   }, []);
 
-  // -------------------- DELETE PROJECT --------------------
   useEffect(() => {
     if (deleteProjectId) {
       deleteProject(deleteProjectId).then(loadProjects);
@@ -145,7 +155,6 @@ function AppContent() {
     }
   }, [deleteProjectId]);
 
-  // -------------------- ADD / UPDATE --------------------
   const handleSubmit = async (project) => {
     if (selectedProject) {
       await updateProject(project);
@@ -162,50 +171,47 @@ function AppContent() {
     navigate("/add");
   };
 
-  const Loader = () => (
-    <div className="loading-container">
-      <div className="spinner" />
-      <p>Loading projects...</p>
-    </div>
-  );
-
   return (
     <>
       <Navbar />
-
-      <Routes>
-        <Route
-          path="/"
-          element={
-            loading ? (
-              <Loader />
-            ) : (
-              <ProjectsPage
-                projects={projects}
-                onEdit={handleEdit}
-                onDelete={setDeleteProjectId}
+      <div style={{ minHeight: "80vh" }}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              loading ? (
+                <div className="loading-container">
+                  <div className="spinner" />
+                </div>
+              ) : (
+                <ProjectsPage
+                  projects={projects}
+                  onEdit={handleEdit}
+                  onDelete={setDeleteProjectId}
+                />
+              )
+            }
+          />
+          <Route
+            path="/add"
+            element={
+              <ProjectFormPage
+                onSubmit={handleSubmit}
+                selectedProject={selectedProject}
               />
-            )
-          }
-        />
+            }
+          />
+        </Routes>
+      </div>
 
-        <Route
-          path="/add"
-          element={
-            <ProjectFormPage
-              onSubmit={handleSubmit}
-              selectedProject={selectedProject}
-            />
-          }
-        />
-      </Routes>
-
-      {/* Footer with flashy animated view */}
       <footer style={footerStyle}>
         <AnimatedView
           count={viewCount.view}
           triggerConfetti={triggerConfetti}
         />
+        <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+          © {viewCount.year} Project Portfolio
+        </p>
       </footer>
     </>
   );
