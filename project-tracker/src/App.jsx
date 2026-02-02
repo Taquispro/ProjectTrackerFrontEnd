@@ -22,7 +22,10 @@ const footerStyle = {
   color: "#6b7280",
   borderTop: "1px solid #e5e7eb",
 };
-
+const view = {
+  year: 2026,
+  view: 0,
+};
 function AppContent() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
@@ -30,7 +33,7 @@ function AppContent() {
   const [deleteProjectId, setDeleteProjectId] = useState(null);
 
   // View object state
-  const [viewCount, setViewCount] = useState(0);
+  const [viewCount, setViewCount] = useState(view);
 
   const navigate = useNavigate();
 
@@ -48,7 +51,7 @@ function AppContent() {
         } else {
           res = await getView(); // await the GET
         }
-
+        console.log(res.data);
         setViewCount(res.data); // now res.data exists
       } catch (err) {
         console.error("Error updating view count:", err);
@@ -140,7 +143,7 @@ function AppContent() {
 
       {/* Footer with view count */}
       <footer style={footerStyle}>
-        <span>Views: {viewCount}</span>
+        <span>Views: {viewCount.view}</span>
       </footer>
     </>
   );
