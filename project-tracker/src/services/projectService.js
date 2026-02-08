@@ -19,12 +19,12 @@ export const setView = () => {
   });
 };
 export const getView = async () => {
-  let res = await axios.get("http://localhost:8080/project/view");
+  let res = await axios.get(`${API_URL}/project/view`);
   return res;
 };
 export const searchResult = async (keyword) => {
   let res = await axios.get(
-    `http://localhost:8080/projects/keyword/${keyword}`,
+    `${API_URL}/projects/keyword/${keyword}`,
   );
   return res;
 };
