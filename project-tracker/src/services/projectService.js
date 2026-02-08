@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "https://projecttrackerjar.onrender.com";
+const API_URL = "http://localhost:8080";
 
 export const getProjects = () => {
   let result = axios.get(`${API_URL}/projects`);
@@ -19,7 +19,13 @@ export const setView = () => {
   });
 };
 export const getView = async () => {
-  let res = await axios.get("https://projecttrackerjar.onrender.com/project/view");
+  let res = await axios.get("http://localhost:8080/project/view");
+  return res;
+};
+export const searchResult = async (keyword) => {
+  let res = await axios.get(
+    `http://localhost:8080/projects/keyword/${keyword}`,
+  );
   return res;
 };
 export const updateProject = (project) => {
