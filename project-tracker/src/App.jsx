@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectFormPage from "./pages/ProjectFormPage";
+
 import {
   getProjects,
   addProject,
@@ -11,135 +12,79 @@ import {
   deleteProject,
   setView,
   getView,
+  searchResult,
 } from "./services/projectService";
 
-// --- PURE CSS (Injected via Template Literal) ---
-const styleTag = `
-  @keyframes count-up {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes pulse-success {
-    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-  }
-  .view-badge-new {
-    animation: pulse-success 1.5s infinite;
-    border-color: #2563eb !important;
-  }
-`;
+/* ------------------ VIEW COUNTER ------------------ */
 
-// --- STYLES ---
-const footerStyle = {
-  marginTop: "60px",
-  padding: "40px 0",
-  textAlign: "center",
-  borderTop: "1px solid #f1f5f9",
-  backgroundColor: "#ffffff",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  gap: "12px",
-};
-
-const badgeStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "10px",
-  padding: "8px 20px",
-  borderRadius: "12px",
-  backgroundColor: "#f8fafc",
-  border: "1px solid #e2e8f0",
-  transition: "all 0.4s ease",
-};
-
-const labelStyle = {
-  fontSize: "11px",
-  fontWeight: "700",
-  color: "#94a3b8",
-  textTransform: "uppercase",
-  letterSpacing: "0.1em",
-};
-
-const countStyle = {
-  fontSize: "18px",
-  fontWeight: "600",
-  color: "#1e293b",
-  fontFamily:
-    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-};
-
-// --- ANIMATED COUNTER COMPONENT ---
-function AnimatedView({ count, isNewVisit }) {
+function AnimatedView({ count }) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    let frame = 0;
-    const totalFrames = 50;
-    const end = count;
+    if (!count) return;
 
-    if (end === 0) return;
+    let frame = 0;
+    const totalFrames = 60;
 
     const timer = setInterval(() => {
       frame++;
       const progress = frame / totalFrames;
-      // Ease-out function
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.floor(easeOut * end));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.floor(eased * count));
 
       if (frame === totalFrames) clearInterval(timer);
-    }, 20);
+    }, 16);
 
     return () => clearInterval(timer);
   }, [count]);
 
   return (
-    <div style={badgeStyle} className={isNewVisit ? "view-badge-new" : ""}>
-      <style>{styleTag}</style>
-      <span style={labelStyle}>Analytics</span>
-      <div style={countStyle}>
-        {display.toLocaleString()}{" "}
-        <span style={{ fontSize: "12px", color: "#cbd5e1" }}>Views</span>
-      </div>
+    <div style={{ fontWeight: "bold", fontSize: "16px" }}>
+      👀 {display.toLocaleString()} views
     </div>
   );
 }
 
-// --- MAIN APP COMPONENT ---
+/* ------------------ APP CONTENT ------------------ */
+
 function AppContent() {
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
-  const [viewCount, setViewCount] = useState({ year: 2026, view: 0 });
-  const [isNewVisit, setIsNewVisit] = useState(false);
 
-  const navigate = useNavigate();
+  const [viewCount, setViewCount] = useState(null);
+
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
+
+  const hasRun = useRef(false);
+
+  /* ------------------ VIEW COUNT LOGIC ------------------ */
 
   useEffect(() => {
-    const updateView = async () => {
-      try {
-        const cameFromLink =
-          document.referrer &&
-          !document.referrer.includes(window.location.hostname);
-        const alreadyCounted = localStorage.getItem("viewCounted");
+    if (hasRun.current) return;
+    hasRun.current = true;
 
-        let res;
-        if (!alreadyCounted && cameFromLink) {
-          res = await setView();
-          localStorage.setItem("viewCounted", "true");
-          setIsNewVisit(true); // Triggers the pulse animation instead of confetti
-        } else {
-          res = await getView();
-        }
+    const trackView = async () => {
+      try {
+        const visited = sessionStorage.getItem("hasVisitedTab");
+
+        const res = visited ? await getView() : await setView();
+
+        sessionStorage.setItem("hasVisitedTab", "true");
         setViewCount(res.data);
       } catch (err) {
-        console.error("Error updating view count:", err);
+        console.error("View error:", err);
       }
     };
-    updateView();
+
+    trackView();
   }, []);
+
+  /* ------------------ LOAD PROJECTS ------------------ */
 
   const loadProjects = async () => {
     setLoading(true);
@@ -157,12 +102,35 @@ function AppContent() {
     loadProjects();
   }, []);
 
+  /* ------------------ DELETE ------------------ */
+
   useEffect(() => {
-    if (deleteProjectId) {
-      deleteProject(deleteProjectId).then(loadProjects);
-      setDeleteProjectId(null);
-    }
+    if (!deleteProjectId) return;
+
+    deleteProject(deleteProjectId).then(loadProjects);
+    setDeleteProjectId(null);
   }, [deleteProjectId]);
+
+  /* ------------------ SEARCH (KEYSTROKE BASED) ------------------ */
+
+  const handleSearchChange = async (e) => {
+    const text = e.target.value;
+
+    if (!text.trim()) {
+      setShowSearch(false);
+      return;
+    }
+
+    try {
+      const res = await searchResult(text);
+      setSearchResults(res.data);
+      setShowSearch(true);
+    } catch (err) {
+      console.error("Search error:", err);
+    }
+  };
+
+  /* ------------------ FORM ------------------ */
 
   const handleSubmit = async (project) => {
     if (selectedProject) {
@@ -171,6 +139,7 @@ function AppContent() {
     } else {
       await addProject(project);
     }
+
     loadProjects();
     navigate("/");
   };
@@ -180,27 +149,31 @@ function AppContent() {
     navigate("/add");
   };
 
+  /* ------------------ RENDER ------------------ */
+
   return (
     <>
-      <Navbar />
-      <div style={{ minHeight: "80vh" }}>
+      <Navbar searchBox={handleSearchChange} />
+
+      <main style={{ minHeight: "80vh" }}>
         <Routes>
           <Route
             path="/"
             element={
               loading ? (
-                <div className="loading-container">
-                  <div className="spinner" />
+                <div style={{ textAlign: "center", padding: "40px" }}>
+                  Loading projects...
                 </div>
               ) : (
                 <ProjectsPage
-                  projects={projects}
+                  projects={showSearch ? searchResults : projects}
                   onEdit={handleEdit}
                   onDelete={setDeleteProjectId}
                 />
               )
             }
           />
+
           <Route
             path="/add"
             element={
@@ -211,24 +184,25 @@ function AppContent() {
             }
           />
         </Routes>
-      </div>
+      </main>
 
-      <footer style={footerStyle}>
-        <AnimatedView count={viewCount.view} isNewVisit={isNewVisit} />
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "12px",
-            marginTop: "8px",
-            fontWeight: "500",
-          }}
-        >
-          &copy; {viewCount.year} Portfolio Management System
-        </div>
+      <footer
+        style={{
+          textAlign: "center",
+          padding: "30px",
+          borderTop: "1px solid #ddd",
+        }}
+      >
+        {viewCount && <AnimatedView count={viewCount.view} />}
+        <p style={{ fontSize: "12px", color: "#777" }}>
+          © {viewCount?.year || new Date().getFullYear()}
+        </p>
       </footer>
     </>
   );
 }
+
+/* ------------------ ROOT ------------------ */
 
 export default function App() {
   return (
