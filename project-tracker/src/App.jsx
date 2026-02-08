@@ -51,18 +51,21 @@ function AppContent() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+
+  // 🔥 MASTER LIST (always has ID)
   const [projects, setProjects] = useState([]);
+
+  // 🔥 DISPLAY LIST (search or normal)
+  const [filteredProjects, setFilteredProjects] = useState([]);
+
   const [selectedProject, setSelectedProject] = useState(null);
   const [deleteProjectId, setDeleteProjectId] = useState(null);
 
   const [viewCount, setViewCount] = useState(null);
 
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearch, setShowSearch] = useState(false);
-
   const hasRun = useRef(false);
 
-  /* ------------------ VIEW COUNT LOGIC ------------------ */
+  /* ------------------ VIEW COUNT ------------------ */
 
   useEffect(() => {
     if (hasRun.current) return;
@@ -71,13 +74,11 @@ function AppContent() {
     const trackView = async () => {
       try {
         const visited = sessionStorage.getItem("hasVisitedTab");
-
         const res = visited ? await getView() : await setView();
-
         sessionStorage.setItem("hasVisitedTab", "true");
         setViewCount(res.data);
       } catch (err) {
-        console.error("View error:", err);
+        console.error(err);
       }
     };
 
@@ -90,7 +91,8 @@ function AppContent() {
     setLoading(true);
     try {
       const res = await getProjects();
-      setProjects(res.data);
+      setProjects(res.data);               // master list
+      setFilteredProjects(res.data);       // visible list
     } catch (err) {
       console.error(err);
     } finally {
@@ -111,20 +113,34 @@ function AppContent() {
     setDeleteProjectId(null);
   }, [deleteProjectId]);
 
-  /* ------------------ SEARCH (KEYSTROKE BASED) ------------------ */
+  /* ------------------ SEARCH (NO BACKEND CHANGE) ------------------ */
 
   const handleSearchChange = async (e) => {
     const text = e.target.value;
 
     if (!text.trim()) {
-      setShowSearch(false);
+      setFilteredProjects(projects);
       return;
     }
 
     try {
       const res = await searchResult(text);
-      setSearchResults(res.data);
-      setShowSearch(true);
+
+      // 🔥 MERGE ID FROM MASTER LIST
+      const withIds = res.data.map((sr) => {
+        const full = projects.find(
+          (p) =>
+            p.projectName === sr.projectName &&
+            p.description === sr.description
+        );
+
+        return {
+          ...sr,
+          id: full?.id, // ✅ ID restored
+        };
+      });
+
+      setFilteredProjects(withIds);
     } catch (err) {
       console.error("Search error:", err);
     }
@@ -145,6 +161,7 @@ function AppContent() {
   };
 
   const handleEdit = (project) => {
+    if (!project.id) return alert("Project ID missing");
     setSelectedProject(project);
     navigate("/add");
   };
@@ -166,7 +183,7 @@ function AppContent() {
                 </div>
               ) : (
                 <ProjectsPage
-                  projects={showSearch ? searchResults : projects}
+                  projects={filteredProjects}
                   onEdit={handleEdit}
                   onDelete={setDeleteProjectId}
                 />
